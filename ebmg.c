@@ -172,10 +172,10 @@ PetscErrorCode EBMG(){
 	ierr = MatScale(Mt,my_factorielle_bornes);CHKERRQ(ierr);
 
 	for (k=1; k<=(2*degree-2); k++) {
-	ierr = MatMatMultSymbolic(matAop,A,PETSC_DEFAULT,&MA);CHKERRQ(ierr); 
-//        ierr = MatMatMultSymbolic(matAop,A,2,&MA);CHKERRQ(ierr);
+	  ierr = MatMatMultSymbolic(matAop,A,PETSC_DEFAULT,&MA);CHKERRQ(ierr); 
+//          ierr = MatMatMultSymbolic(matAop,A,1,&MA);CHKERRQ(ierr);
 	  ierr = MatMatMultNumeric(matAop,A,MA);CHKERRQ(ierr);//M*A
-  //      ierr = MatMatMultSymbolic(A,matAop,2,&AM);CHKERRQ(ierr);
+//          ierr = MatMatMultSymbolic(A,matAop,1,&AM);CHKERRQ(ierr);
 	  ierr = MatMatMultSymbolic(A,matAop,PETSC_DEFAULT,&AM);CHKERRQ(ierr);
 	  ierr = MatMatMultNumeric(A,matAop,AM);CHKERRQ(ierr); //A*M
 
@@ -226,6 +226,15 @@ PetscErrorCode EBMG(){
     PetscPrintf(PETSC_COMM_WORLD,"\nElapsed time is %f seconds\n\n",time);
     PetscPrintf(PETSC_COMM_WORLD, "--------------------------\n");
 
+	PetscLogDouble a,b, benchmark;
+	PetscTime(&a);
+	Mat Mult;
+	MatMatMultSymbolic(Mt,A,PETSC_DEFAULT, &Mult);
+	MatMatMultNumeric(Mt,A,Mult);
+	PetscTime(&b);
+	benchmark = b - a;
+	PetscPrintf(PETSC_COMM_WORLD,"\nMatMult Bencnmark time is %f seconds\n\n",benchmark);
+	PetscPrintf(PETSC_COMM_WORLD, "--------------------------\n");
 	return ierr;
 
 }
