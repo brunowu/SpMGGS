@@ -19,6 +19,7 @@ PetscErrorCode EBMG(){
 	PetscViewer    	output_viewer;
 	clock_t start, finish;
 	double  duration;
+	PetscLogDouble st,ed;
 
 	PetscInt Istart, Iend;
 
@@ -61,12 +62,12 @@ PetscErrorCode EBMG(){
   	PetscMalloc1(n,&Deigenvalues);
 
  	PetscPrintf(PETSC_COMM_WORLD, "--------------------------\n");
-    ierr=PetscOptionsGetString(NULL,PETSC_NULL,"-vfile",fileb,PETSC_MAX_PATH_LEN-1,&flagb);CHKERRQ(ierr); //maybe read the eigenvalues we need from outside file
+    	ierr=PetscOptionsGetString(NULL,PETSC_NULL,"-vfile",fileb,PETSC_MAX_PATH_LEN-1,&flagb);CHKERRQ(ierr); //maybe read the eigenvalues we need from outside file
 
 	if (!flagb){ //no input eigenvalues file, generate with some strategies
 		PetscPrintf(PETSC_COMM_WORLD, "Not providing the outside eigenvalues files, using the internal functions to generate them...\n");
 		random_selection(Deigenvalues,n); 
-		shuffer(Deigenvalues,n);
+	//	shuffer(Deigenvalues,n);
 	}
 	else{ //real the required eigenvalues from outside files
         PetscPrintf(PETSC_COMM_WORLD, "Using the eigenvalues provides by outside files: %s ...\n", fileb);
@@ -80,8 +81,10 @@ PetscErrorCode EBMG(){
 		}
 		n = size;
 	}
+
 	PetscScalar tmp;
 
+	PetscTime(&st);
 	for(i=istart;i<iend;i++){
 		tmp = Deigenvalues[i];
 		VecSetValue(eigenvalues, i, tmp, INSERT_VALUES);
@@ -90,6 +93,7 @@ PetscErrorCode EBMG(){
 	
 ///	VecView(eigenvalues, PETSC_VIEWER_STDOUT_WORLD);
 	start = clock();
+	
 	ierr = MatCreate(PETSC_COMM_WORLD,&Mt);CHKERRQ(ierr);
 	ierr = MatSetSizes(Mt,PETSC_DECIDE,PETSC_DECIDE,n,n);CHKERRQ(ierr);
 	ierr = MatSetType(Mt,MATMPIAIJ);CHKERRQ(ierr);
@@ -189,7 +193,7 @@ PetscErrorCode EBMG(){
 	ierr = MatScale(Mt,inv);CHKERRQ(ierr);	
 
 	finish = clock();	
-	
+	PetscTime(&ed);
 	MatGetInfo(Mt,MAT_GLOBAL_SUM,&Ainfo);
 
 /*
@@ -217,8 +221,9 @@ PetscErrorCode EBMG(){
 	PetscPrintf(PETSC_COMM_WORLD,"\n>>>>>>Please use the command 'gzip -d **' to unzip the file to binary file\n\n");
 
 	duration = (double)(finish - start) / CLOCKS_PER_SEC;
+	PetscLogDouble time = ed - st;
     PetscPrintf(PETSC_COMM_WORLD, "--------------------------\n");
-    PetscPrintf(PETSC_COMM_WORLD,"\nElapsed time is %f seconds\n\n", duration);
+    PetscPrintf(PETSC_COMM_WORLD,"\nElapsed time is %f seconds\n\n",time);
     PetscPrintf(PETSC_COMM_WORLD, "--------------------------\n");
 
 	return ierr;

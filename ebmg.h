@@ -11,6 +11,7 @@
 #include <petscksp.h>
 #include "petsc.h"
 #include "libs.h"
+#include <petsctime.h>
 
 PetscErrorCode EBMG();
 
