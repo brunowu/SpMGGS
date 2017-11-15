@@ -56,177 +56,20 @@ void random_selection(PetscScalar *ret, PetscInt nombre)
 
   srand(my_seed); 
 
-  for(i = 0; i < nombre/2; i++){
-
-/*
-    if(i<1*nombre/4) ret = 1*(cos(2*PI*i/nombre)+2) + PETSC_i*1*(sin(2*PI*i/nombre)+2);
-    else if(i<2*nombre/4) ret =1* (cos(2*PI*i/nombre)+2) + PETSC_i*1*(sin(2*PI*i/nombre)-2);
-    else if(i<3*nombre/4) ret = 1*(cos(2*PI*i/nombre)+4) + PETSC_i*1*(sin(2*PI*i/nombre)+2);
-    else ret = 1*(cos(2*PI*i/nombre)+4) + PETSC_i*1*(sin(2*PI*i/nombre)-2);
-*/
-
-/*
-    if(i < 9*nombre / 10)
-    	ret[i] = -1*(cos(2*PI*i/nombre)+2+5*rand()/RAND_MAX) + PETSC_i*1*(sin(2*PI*i/nombre));
-    else ret[i] =-1*(cos(2*PI*i/nombre)+2) + PETSC_i*1*(sin(2*PI*i/nombre) );
-*/
+  for(i = 0; i < nombre; i++){
 
 
-/*
-    if(i < 1*nombre / 10)
-        ret[i] = 1*(cos(2*PI*i/nombre)+1.2500) + PETSC_i*2*(sin(2*PI*i/nombre));
-    else ret[i] =1*(cos(2*PI*i/nombre)+1.250) + PETSC_i*2*(sin(2*PI*i/nombre));
-
-*/
-/*
-    if(i < 2*nombre / 10)
-        ret[i] = 5*i + PETSC_i*10;
-    else ret[i] =5*(cos(PI*i/nombre))+100+0.01*PETSC_i;
-*/
-
-//    ret[i] =200+  (PetscScalar)PETSC_i*2*cos(i / nombre);
-
-//    ret[i] = 2123*i+1+(-123.5423121*i+1000)*PETSC_i;
-
-//  good case for UCGLE
-
-/* 
-    if(i < 3*nombre / 10)
-        ret[i] = 1*(cos(2*PI*i/nombre)+2) + PETSC_i*1*sin(2*PI*i/nombre);
-    else if(i < 6 * nombre / 10) ret[i] = 10*(cos(2*PI*i/nombre)+200) + PETSC_i*1*(sin(2*PI*i/nombre) + 277);
-    else ret[i] = 1*(cos(2*PI*i/nombre)+3000) + PETSC_i*1*(sin(2*PI*i/nombre) - 2800); 
-
-*/
-
-/*
-   if(i < 5 * nombre / 10){
-	ret[i] = 1 + (0.8* (sin(4*PI*i/nombre)+1.5))  + PETSC_i* (0.8* (sin(4*PI*i/nombre)+1.5));
-   }
-   else{
-	ret[i] = 1 + (0.8* (sin(4*PI*i/nombre)+1.5))  - PETSC_i* (0.8* (sin(4*PI*i/nombre)+1.5));
-   }   
-*/
-/*
-   if(i < 5 * nombre / 20){
-        ret[i] = 5  + PETSC_i* (8* (sin(4*PI*i/nombre)+1.5));
-   }
-   else if(i < 5 * nombre / 10){
-        ret[i] = 5  - PETSC_i* (8* (sin(4*PI*i/nombre)+1.5));
-   }
-   else if(i < 15 * nombre / 20){
-        ret[i] = 10  + PETSC_i* (8* (sin(4*PI*i/nombre)+1.5));
-   }
-   else{
-        ret[i] = 10  - PETSC_i* (8* (sin(4*PI*i/nombre)+1.5));
-   }
-*/
-
-/*
-   if(i < 5 * nombre / 20){
-        ret[i] = 10+0.02* sin(4*PI*i/nombre) + PETSC_i* (8* (sin(4*PI*i/nombre)+1.5));
-   }
-   else if(i < 5 * nombre / 10){
-        ret[i] = 10+0.02* sin(4*PI*i/nombre)  - PETSC_i* (8* (sin(4*PI*i/nombre)+1.5));
-   }
-   else if(i < 15 * nombre / 20){
-        ret[i] = 10 + 3* sin(4*PI*i/nombre) + PETSC_i* (8* (sin(4*PI*i/nombre)+1.5));
-   }
-   else{
-        ret[i] = 10 + 3* sin(4*PI*i/nombre) - PETSC_i* (8* (sin(4*PI*i/nombre)+1.5));
-   }
-*/
-/*
- if(i < 5 * nombre / 20){
-        ret[i] = 20+8* cos(4*PI*i/nombre) + PETSC_i* (8* (sin(4*PI*i/nombre)));
-   }
-   else if(i < 10 * nombre / 20) 
-  {
-        ret[i] = 20+8* cos(4*PI*i/nombre)  - PETSC_i* (8* (sin(4*PI*i/nombre)));
-  }
-   else if(i < 15 * nombre / 20)
-   {
-        ret[i] = 20+8* cos(4*PI*i/nombre)  + PETSC_i* (8* (sin(4*PI*i/nombre)));
-   }
-   else{
-        ret[i] = 20+8* cos(4*PI*i/nombre)  - PETSC_i* (8* (sin(4*PI*i/nombre)));
-	}
-
-*/
-//ret[0] = -10;
-
-//good case for the generation
-/*
- if(i < 10 * nombre / 20){
-        ret[i] = 10.+8* cos(4*PI*i/nombre) + PETSC_i* (8* (sin(4*PI*i/nombre)));
-   }
-   else{
-        ret[i] = 10.+8* cos(4*PI*i/nombre)  - PETSC_i* (8* (sin(4*PI*i/nombre)));
-        }
-*/
-/*
-  if(i < 0.5*nombre)
-	ret[i] = 1.0+PETSC_i * 1.0;
-  else ret[i] = 1.0-PETSC_i * 1.0;
-*/
-/*
- if(i < 10 * nombre / 20){
-        ret[i] = 13+8* cos(4*PI*i/nombre) + PETSC_i* (8* (sin(4*PI*i/nombre)));
-   }
-   else{
-        ret[i] = 13+8* cos(4*PI*i/nombre)  - PETSC_i* (8* (sin(4*PI*i/nombre)));
-        }
-*/
 	PetscReal real, imag;
 	srand(i);
-
-//good case 1
-
-	real = rnd(3,10);
-	imag = rnd(3,10);
-
-
-//good case 2
-
-/*
-	PetscReal rd= rnd(0,1);
-	real = -10 + 12 * cos(rd*PI);
-	imag = 12 * sin(rd*PI);
-*/
-
-//three leafed formula
-/*
-	PetscReal rd = rnd(0,1);
-	real = 10 + 9*cos(3*rd*PI)*cos(rd*PI);
-	imag = 9*cos(3*rd*PI)*sin(rd*PI);
-*/
-
+	real = 1+1*i;
+	imag = 1+1*i;
 	#if defined(PETSC_USE_COMPLEX)
-//		PetscPrintf(PETSC_COMM_WORLD,"Generating the Complex eigenvalues...\n\n");
         	ret[i] = real+ PETSC_i * imag;
-        	ret[nombre-1-i] =  real -  PETSC_i * imag;
+//	        ret[nombre-1-i] =  real -  PETSC_i * imag;
 	#elif defined(PETSC_USE_REAL)
-//		PetscPrintf(PETSC_COMM_WORLD,"Generating the REAL eigenvalues...\n\n");
 		ret[i] = real;
-                ret[nombre-1-i] = real;
+//                ret[nombre-1-i] = real;
 	#endif
-
-//arrow formula
-/*
-	if(i < nombre/10){
-		real = rnd(2,10);
-		imag = rnd(0,1);
-		ret[i] = real+ PETSC_i * imag;
-		ret[nombre-1-i] =  real -  PETSC_i * imag;
-	}
-	else{
-		PetscReal rd = rnd(-0.5,0.5);
-                real = 10 + 3 * cos(rd*PI);
-                imag = 3 * sin(rd*PI);
-                ret[i] = real+ PETSC_i * imag;
-                ret[nombre-1-i] =  real -  PETSC_i * imag;
-	}
-*/
-//	PetscPrintf(PETSC_COMM_WORLD,"ret[%d] = %f + %fi\n", i, real, imag);
 
     }
 
