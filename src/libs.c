@@ -61,12 +61,12 @@ void random_selection(PetscScalar *ret, PetscInt nombre)
 
 	PetscReal real, imag;
 	srand(i);
-	real = 1+1*i;
-	imag = 1+1*i;
-	#if defined(PETSC_USE_COMPLEX)
+	real = 10+10*i;
+	imag = 10+10*i;
+	#ifdef PETSC_USE_COMPLEX
         	ret[i] = real+ PETSC_i * imag;
 //	        ret[nombre-1-i] =  real -  PETSC_i * imag;
-	#elif defined(PETSC_USE_REAL)
+	#else
 		ret[i] = real;
 //                ret[nombre-1-i] = real;
 	#endif

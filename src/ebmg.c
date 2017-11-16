@@ -42,9 +42,9 @@ PetscErrorCode EBMG(){
 		ierr = PetscPrintf(PETSC_COMM_WORLD,"Unset d1, using default degree = %d\n", d1);CHKERRQ(ierr);
 	}
 
-        #if defined(PETSC_USE_COMPLEX)
+        #ifdef PETSC_USE_COMPLEX
                 PetscPrintf(PETSC_COMM_WORLD,"Generating the Complex eigenvalues...\n\n");
-        #elif defined(PETSC_USE_REAL)
+        #else
                 PetscPrintf(PETSC_COMM_WORLD,"Generating the REAL eigenvalues...\n\n");
         #endif
 
@@ -108,7 +108,7 @@ PetscErrorCode EBMG(){
 	  for (j=i-d1; j<i; j++){
 	  	if(j >= 0)
 	  	{
-	    	rRandom1 = Random (0,10);
+	    	rRandom1 = 0.5*Random (0,10);
 	    	ierr = MatSetValues(Mt,1,&i,1,&j,&rRandom1,INSERT_VALUES);CHKERRQ(ierr);
 	  	}
 	   }

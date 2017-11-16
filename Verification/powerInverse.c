@@ -23,7 +23,7 @@ int main(int argc, char **argv){
 	ierr=SlepcInitialize(&argc,&argv,PETSC_NULL,help);CHKERRQ(ierr);
 	PetscPrintf(PETSC_COMM_WORLD,"\n]> Initializing SLEPc\n");
 
-	ierr = PetscOptionsGetScalar(NULL, PETSC_NULL, "-test_value", &vtest, &vtest_flg);
+	ierr = PetscOptionsGetScalar(NULL, PETSC_NULL, "-exact_value", &vtest, &vtest_flg);
         ierr = PetscOptionsGetScalar(NULL, PETSC_NULL, "-test_tol", &test_tol, &tol_flg);
         ierr = PetscOptionsGetInt(NULL, PETSC_NULL, "-degree", &degree, &degree_flg);
 /*        
@@ -42,11 +42,12 @@ int main(int argc, char **argv){
 	  PetscPrintf(PETSC_COMM_WORLD, "ERROR: Please set the exact expacted eigenvalues to test... \n");
           PetscPrintf(PETSC_COMM_WORLD, "ERROR: Exit with errors ... \n\n");
 	  return 0;
-       } else{
+       } 
+//	else{
 //	  vtest = vtest * fac;
-      	  vtest = vtest;
-          PetscPrintf(PETSC_COMM_WORLD, " @>Remainder: test value = %f + %fi...\n", PetscRealPart(vtest), PetscImaginaryPart(vtest));
-	}
+//      	  vtest = vtest;
+//          PetscPrintf(PETSC_COMM_WORLD, " @>Remainder: test value = %f + %fi...\n", PetscRealPart(vtest), PetscImaginaryPart(vtest));
+//	}
 	if(!tol_flg){
 		test_tol = 1e-8;
           	PetscPrintf(PETSC_COMM_WORLD, " @>Remainder: Not set the tolerance for validation, use the defaut value tol =  %.2e ...\n",test_tol);
@@ -62,9 +63,17 @@ int main(int argc, char **argv){
 	ierr = EPSSetType(eps,EPSPOWER);CHKERRQ(ierr);
 	ierr = EPSSetFromOptions(eps);CHKERRQ(ierr);
 	EPSSetWhichEigenpairs(eps, EPS_TARGET_MAGNITUDE);
-	target = PetscRealPart(vtest)+0.0000000001+PetscImaginaryPart(vtest)*PETSC_i;
+	#ifdef PETSC_USE_COMPLEX
+		target = PetscRealPart(vtest)+0.00001+PetscImaginaryPart(vtest)*PETSC_i;
+	#else
+                target = vtest+0.00001;
+	#endif
 	EPSSetTarget(eps,target);
-        PetscPrintf(PETSC_COMM_WORLD, " @>Remainder: The input target value is %f + %fi...\n", PetscRealPart(target), PetscImaginaryPart(target));
+	#ifdef PETSC_USE_COMPLEX
+        	PetscPrintf(PETSC_COMM_WORLD, " @>Remainder: The input target value is %f + %fi ...\n", PetscRealPart(target), PetscImaginaryPart(target));
+	#else
+		PetscPrintf(PETSC_COMM_WORLD, " @>Remainder: The input target value is %f ...\n", target);
+	#endif
 	ierr=EPSSetInitialSpace(eps,1,&x);CHKERRQ(ierr);
 	PetscPrintf(PETSC_COMM_WORLD,"]> Krylov Solver settings done\n");
 
@@ -97,7 +106,11 @@ int main(int argc, char **argv){
 	ierr = MatCreateVecs(A,NULL,&Ax);CHKERRQ(ierr);
 	ierr = EPSGetEigenvector(eps,0,xr,xi);CHKERRQ(ierr);
 	ierr = EPSGetEigenvalue(eps,0,&eigr,&eigi);CHKERRQ(ierr);
-	PetscPrintf(PETSC_COMM_WORLD,"@> The eigenvalue is %f + %fi \n", eigr, eigi);
+	#ifdef PETSC_USE_COMPLEX
+		PetscPrintf(PETSC_COMM_WORLD,"@> The eigenvalue is %f + %fi \n", eigr, eigi);
+	#else
+                PetscPrintf(PETSC_COMM_WORLD,"@> The eigenvalue is %f \n", eigr);
+	#endif
 	ierr = VecWAXPY(eigenvector,1,xr,xi);CHKERRQ(ierr);
 	ierr = MatMult(A, eigenvector, Ax);CHKERRQ(ierr);
 	ierr = VecScale(eigenvector, vtest);CHKERRQ(ierr);
@@ -106,6 +119,7 @@ int main(int argc, char **argv){
 	ierr = VecNorm(Ax, NORM_2, &norm);CHKERRQ(ierr);
 //	ierr = VecNorm(eigenvector, NORM_2, &vnorm);
 	residual = norm / vnorm;
+//        residual = norm;
 	PetscPrintf(PETSC_COMM_WORLD," \n     Residual:||Av-kv||/||Av||  \n");
         PetscPrintf(PETSC_COMM_WORLD,"     ------------------------- \n");
         PetscPrintf(PETSC_COMM_WORLD," \n           %.5e  \n\n    ", residual);
