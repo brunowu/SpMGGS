@@ -64,9 +64,9 @@ int main(int argc, char **argv){
 	ierr = EPSSetFromOptions(eps);CHKERRQ(ierr);
 	EPSSetWhichEigenpairs(eps, EPS_TARGET_MAGNITUDE);
 	#ifdef PETSC_USE_COMPLEX
-		target = PetscRealPart(vtest)+0.00001+PetscImaginaryPart(vtest)*PETSC_i;
+		target = PetscRealPart(vtest)+0.001+PetscImaginaryPart(vtest)*PETSC_i;
 	#else
-                target = vtest+0.00001;
+                target = vtest+0.001;
 	#endif
 	EPSSetTarget(eps,target);
 	#ifdef PETSC_USE_COMPLEX
@@ -106,10 +106,21 @@ int main(int argc, char **argv){
 	ierr = MatCreateVecs(A,NULL,&Ax);CHKERRQ(ierr);
 	ierr = EPSGetEigenvector(eps,0,xr,xi);CHKERRQ(ierr);
 	ierr = EPSGetEigenvalue(eps,0,&eigr,&eigi);CHKERRQ(ierr);
+//	VecView(xr,PETSC_VIEWER_STDOUT_SELF);
+//	VecView(xi,PETSC_VIEWER_STDOUT_SELF);
+//	PetscScalarView(1,&eigr,PETSC_VIEWER_STDOUT_SELF);
+	PetscReal re, im;
 	#ifdef PETSC_USE_COMPLEX
-		PetscPrintf(PETSC_COMM_WORLD,"@> The eigenvalue is %f + %fi \n", eigr, eigi);
+		re = PetscRealPart(eigr);
+		im = PetscImaginaryPart(eigr);
+		PetscPrintf(PETSC_COMM_WORLD,"@> The eigenvalue is %f + %fi \n", re, im);
 	#else
-                PetscPrintf(PETSC_COMM_WORLD,"@> The eigenvalue is %f \n", eigr);
+		re = eigr;
+		im = eigi;
+		if(im == 0)
+			PetscPrintf(PETSC_COMM_WORLD,"@> The eigenvalue is %f \n", eigr);
+	        else
+			PetscPrintf(PETSC_COMM_WORLD,"@> The eigenvalue is %f + %fi \n", re, im);
 	#endif
 	ierr = VecWAXPY(eigenvector,1,xr,xi);CHKERRQ(ierr);
 	ierr = MatMult(A, eigenvector, Ax);CHKERRQ(ierr);
