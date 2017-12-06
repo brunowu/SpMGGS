@@ -1,9 +1,11 @@
-/*for compile: nvcc -o test.exe test.cu -lcusparse*/
+static char help[] = "Mat Mat mult on GPU\n";
 
 #include <cusparse_v2.h>
 #include <stdio.h>
+#include <petscksp.h>
+#include <../src/mat/impls/aij/seq/aij.h>
 
-#define N 100000
+#define N 10
 
 // matrix generation and validation depends on these relationships:
 #define SCL 2
@@ -27,8 +29,11 @@
     } while (0)
 
 // perform sparse-matrix multiplication C=AxB
-int main(){
+int main(int argc,char **argv){
 
+  PetscErrorCode     ierr;
+  Mat                A, B;
+  PetscScalar	     v;
   cusparseStatus_t stat;
   cusparseHandle_t hndl;
   cusparseMatDescr_t descrA, descrB, descrC;
@@ -41,7 +46,46 @@ int main(){
   n = N;
   k = K;
 
-// generate A, B=2I
+  PetscInitialize(&argc,&argv,0,help);
+  MatCreateSeqAIJ(PETSC_COMM_WORLD,M,N,1,NULL,&A);
+  MatSetOption(A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
+  v = 1.0;
+  for(int i = 0; i < N; i++){
+	int j = 2*i;
+        ierr = MatSetValues(A,1,&j,1,&i,&v,INSERT_VALUES);CHKERRQ(ierr);
+	int m = j+1;
+	ierr = MatSetValues(A,1,&m,1,&i,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+
+  ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+
+  MatView(A,PETSC_VIEWER_STDOUT_SELF);
+
+  MatCreateSeqAIJ(PETSC_COMM_WORLD,N,N,1,NULL,&B);
+
+  MatSetOption(B, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
+  
+  v = 2.0;
+  for (int i=0; i<N; i++) {
+    ierr = MatSetValues(B,1,&i,1,&i,&v,INSERT_VALUES);CHKERRQ(ierr);
+  }
+
+  ierr = MatAssemblyBegin(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+  ierr = MatAssemblyEnd(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+
+  MatView(B,PETSC_VIEWER_STDOUT_SELF);
+
+
+  Mat_SeqAIJ         *a =(Mat_SeqAIJ*)A->data, *b =(Mat_SeqAIJ*)B->data;
+  PetscInt           *ai=a->i, *aj=a->j, *bi=b->i,*bj=b->j;
+  PetscScalar        *aa=a->a, *bb=b->a;
+
+
+  for(int i = 0; i < M+1; i++){
+    printf("ai[%d] = %d \n",i,ai[i]);
+  }
+
 
 /* A:
    |1.0 0.0 0.0 ...|
@@ -69,16 +113,16 @@ int main(){
   if ((h_csrRowPtrA == NULL) || (h_csrRowPtrB == NULL) || (h_csrColIndA == NULL) || (h_csrColIndB == NULL) || (h_csrValA == NULL) || (h_csrValB == NULL))
     {printf("malloc fail\n"); return -1;}
   for (int i = 0; i < m; i++){
-    h_csrValA[i] = 1.0f;
-    h_csrRowPtrA[i] = i;
-    h_csrColIndA[i] = i/SCL;
+    h_csrValA[i] = PetscRealPart(aa[i]);
+    h_csrRowPtrA[i] = ai[i];
+    h_csrColIndA[i] = aj[i];
     if (i < n){
-      h_csrValB[i] = 2.0f;
-      h_csrRowPtrB[i] = i;
-      h_csrColIndB[i] = i;}
+      h_csrValB[i] = PetscRealPart(bb[i]);
+      h_csrRowPtrB[i] = bi[i];
+      h_csrColIndB[i] = bj[i];}
     }
-  h_csrRowPtrA[m] = m;
-  h_csrRowPtrB[n] = n;
+  h_csrRowPtrA[m] = ai[m];
+  h_csrRowPtrB[n] = ai[n];
 
 // transfer data to device
 
@@ -164,6 +208,13 @@ int main(){
   cudaMemcpy(h_csrValC, csrValC, nnzC*sizeof(float), cudaMemcpyDeviceToHost);
   cudaCheckErrors("cudaMemcpy fail");
 
+  for(int i = 0; i < m; i++){
+    printf("ccolind[%d] = %d \n",i,h_csrColIndC[i]);
+  }
+  printf("-----\n");
+  for(int i = 0; i < m; i++){
+    printf("cVal[%d] = %f \n",i,h_csrValC[i]);
+  }
 // check result, C = 2A
   if (nnzC != m) {printf("invalid matrix size C: %d, should be: %d\n", nnzC, m); return -1;}
   for (int i = 0; i < m; i++){
@@ -172,6 +223,10 @@ int main(){
     if ((h_csrValA[i]*2.0f) != h_csrValC[i]) {printf("A/C value mismatch at %d, A: %f, C: %f\n", i, h_csrValA[i]*2.0f, h_csrValC[i]); return -1;}
     }
   printf("Success!\n");
-  return 0;
+  
+  MatDestroy(&A);
+  PetscFinalize();
+
+  return ierr;
 }
 
