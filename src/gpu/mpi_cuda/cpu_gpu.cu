@@ -5,10 +5,10 @@
 *  Compute their square root on each node's GPU.
 *  Compute the average of the results using MPI.
 *
-*  simpleMPI.cpp: main program, compiled with mpicxx
+*  to compile: make
+*  to run: mpirun -np ${NODES} ./test.exe
 */
 
-// System includes
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -100,7 +100,6 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-// Shut down MPI cleanly if something goes wrong
 void my_abort(int err) {
     printf("Test FAILED\n");
     MPI_Abort(MPI_COMM_WORLD, err);
