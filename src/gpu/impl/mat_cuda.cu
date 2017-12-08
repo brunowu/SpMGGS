@@ -4,11 +4,13 @@ static char help[] = "Mat Mat mult on GPU\n";
 #include <stdio.h>
 #include <petscksp.h>
 #include <../src/mat/impls/aij/seq/aij.h>
+#include <../src/mat/utils/freespace.h>
 #include "mat_cuda.h"
+#include <petsctime.h>
 #define N 10
 
 // matrix generation and validation depends on these relationships:
-#define SCL 2
+#define SCL 1
 #define K N
 #define M (SCL*N)
 // A: MxK  B: KxN  C: MxN
@@ -70,8 +72,8 @@ PetscErrorCode MatSeqCopy2GPU(Mat A,MatCUDA *B){
 
  
   return 0;
-
 }
+
 
 PetscErrorCode MatMatMult_SeqGPU(MatCUDA A, MatCUDA B, MatCUDA *C, cusparseHandle_t hndl){
 
@@ -168,6 +170,52 @@ PetscErrorCode MatSeqCopy2HOST(MatCUDA B, Mat *A){
   return 0;
 }
 
+PetscErrorCode MatMatMult_MPIAIJGPU(Mat A,Mat P,Mat *C, cusparseHandle_t hndl){
+  PetscErrorCode ierr;
+  MPI_Comm           comm;
+  PetscMPIInt        size;
+  Mat_PtAPMPI        *ptap;
+  Mat_MPIAIJ         *a        =(Mat_MPIAIJ*)A->data;
+  MatCUDA	     ploc, poth;
+  MatCUDA	     Adia, Aoff;
+
+  PetscFunctionBegin;
+  ierr = PetscObjectGetComm((PetscObject)A,&comm);CHKERRQ(ierr);
+  ierr = MPI_Comm_size(comm,&size);CHKERRQ(ierr);
+
+  ierr = PetscNew(&ptap);CHKERRQ(ierr);
+  ierr = MatGetBrowsOfAoCols_MPIAIJ(A,P,MAT_INITIAL_MATRIX,&ptap->startsj_s,&ptap->startsj_r,&ptap->bufa,&ptap->P_oth);CHKERRQ(ierr);
+  ierr = MatMPIAIJGetLocalMat(P,MAT_INITIAL_MATRIX,&ptap->P_loc);CHKERRQ(ierr);
+
+
+ 
+  MatSeqCopy2GPU(ptap->P_loc, &ploc);
+  MatSeqCopy2GPU(ptap->P_oth, &poth);
+
+  MatSeqCopy2GPU(a->A,&Adia);
+  MatSeqCopy2GPU(a->B,&Aoff);
+
+  MatCUDA Cdia, Coff;
+
+  MatMatMult_SeqGPU(Adia, ploc, &Cdia,hndl);
+  MatMatMult_SeqGPU(Aoff, poth, &Coff,hndl);
+
+  Mat	Cdiag, Cofff;
+
+  MatSeqCopy2HOST(Cdia,&Cdiag);
+  MatSeqCopy2HOST(Coff,&Cofff);
+
+
+  MatAXPY(Cdiag,1.0,Cofff, DIFFERENT_NONZERO_PATTERN);
+  PetscPrintf(PETSC_COMM_WORLD,"TEST CDIAg + COFFdia\n");
+  Mat_SeqAIJ *cd = (Mat_SeqAIJ*) Cdiag->data;
+  PetscInt	*cdi = cd->i, *cdj = cd->j;
+  PetscScalar *cda = cd->a;
+  MatCreateMPIAIJWithArrays(MPI_COMM_WORLD,2,PETSC_DECIDE,4,4,cdi,cdj,cda,C);
+ // MatView(*C,PETSC_VIEWER_STDOUT_WORLD);
+  PetscFunctionReturn(0);
+
+}
 int main(int argc,char **argv){
 
   PetscErrorCode     ierr;
@@ -175,81 +223,78 @@ int main(int argc,char **argv){
   PetscScalar	     v;
   cusparseHandle_t hndl;
 
+  PetscInt        r, start, end;
+ PetscInt m=2,n=2;
   PetscInitialize(&argc,&argv,0,help);
-  MatCreateSeqAIJ(PETSC_COMM_WORLD,M,N,1,NULL,&A);
-  MatSetOption(A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
-  v = 1.0;
-  for(int i = 0; i < N; i++){
-	int j = 2*i;
-        ierr = MatSetValues(A,1,&j,1,&i,&v,INSERT_VALUES);CHKERRQ(ierr);
-	int m = j+1;
-	ierr = MatSetValues(A,1,&m,1,&i,&v,INSERT_VALUES);CHKERRQ(ierr);
+//  MatCreateAIJ(PETSC_COMM_WORLD,PETSC_DECIDE,PETSC_DECIDE,M,N,1,NULL,0,NULL,&A);
+
+ // MatView(A,PETSC_VIEWER_STDOUT_WORLD);
+
+//  MatCreateSeqAIJ(PETSC_COMM_WORLD,N,N,1,NULL,&B);
+
+
+PetscInt       i,j,Ii,J,Istart,Iend;
+//  MatView(B,PETSC_VIEWER_STDOUT_WORLD);
+
+ 
+
+ ierr = MatCreate(PETSC_COMM_WORLD,&A);CHKERRQ(ierr);
+  ierr = MatSetSizes(A,PETSC_DECIDE,PETSC_DECIDE,m*n,m*n);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(A);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(A,5,NULL,5,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(A,5,NULL);CHKERRQ(ierr);
+
+  ierr = MatGetOwnershipRange(A,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart; Ii<Iend; Ii++) {
+    v = -1.0+Ii; i = Ii/n; j = Ii - i*n;
+    if (i>0)   {J = Ii - n; ierr = MatSetValues(A,1,&Ii,1,&J,&v,ADD_VALUES);CHKERRQ(ierr);}
+    if (i<m-1) {J = Ii + n; ierr = MatSetValues(A,1,&Ii,1,&J,&v,ADD_VALUES);CHKERRQ(ierr);}
+    if (j>0)   {J = Ii - 1; ierr = MatSetValues(A,1,&Ii,1,&J,&v,ADD_VALUES);CHKERRQ(ierr);}
+    if (j<n-1) {J = Ii + 1; ierr = MatSetValues(A,1,&Ii,1,&J,&v,ADD_VALUES);CHKERRQ(ierr);}
+    v = 4.0+Ii; ierr = MatSetValues(A,1,&Ii,1,&Ii,&v,ADD_VALUES);CHKERRQ(ierr);
   }
 
-  ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+
+    ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+   MatView(A,PETSC_VIEWER_STDOUT_WORLD); 
 
-  MatView(A,PETSC_VIEWER_STDOUT_SELF);
 
-  MatCreateSeqAIJ(PETSC_COMM_WORLD,N,N,1,NULL,&B);
 
-  MatSetOption(B, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE);
-  
-  v = 2.0;
-  for (int i=0; i<N; i++) {
-    ierr = MatSetValues(B,1,&i,1,&i,&v,INSERT_VALUES);CHKERRQ(ierr);
+ ierr = MatCreate(PETSC_COMM_WORLD,&B);CHKERRQ(ierr);
+  ierr = MatSetSizes(B,PETSC_DECIDE,PETSC_DECIDE,m*n,m*n);CHKERRQ(ierr);
+  ierr = MatSetFromOptions(B);CHKERRQ(ierr);
+  ierr = MatMPIAIJSetPreallocation(B,5,NULL,5,NULL);CHKERRQ(ierr);
+  ierr = MatSeqAIJSetPreallocation(B,5,NULL);CHKERRQ(ierr);
+
+  ierr = MatGetOwnershipRange(B,&Istart,&Iend);CHKERRQ(ierr);
+  for (Ii=Istart; Ii<Iend; Ii++) {
+    v = -100.0+Ii; i = Ii/n; j = Ii - i*n;
+    if (i>0)   {J = Ii - n; ierr = MatSetValues(B,1,&Ii,1,&J,&v,ADD_VALUES);CHKERRQ(ierr);}
+    if (i<m-1) {J = Ii + n; ierr = MatSetValues(B,1,&Ii,1,&J,&v,ADD_VALUES);CHKERRQ(ierr);}
+    if (j>0)   {J = Ii - 1; ierr = MatSetValues(B,1,&Ii,1,&J,&v,ADD_VALUES);CHKERRQ(ierr);}
+    if (j<n-1) {J = Ii + 1; ierr = MatSetValues(B,1,&Ii,1,&J,&v,ADD_VALUES);CHKERRQ(ierr);}
+    v = 10.0+Ii; ierr = MatSetValues(B,1,&Ii,1,&Ii,&v,ADD_VALUES);CHKERRQ(ierr);
   }
 
-  ierr = MatAssemblyBegin(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+
+    ierr = MatAssemblyBegin(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
   ierr = MatAssemblyEnd(B,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
+   MatView(B,PETSC_VIEWER_STDOUT_WORLD);
 
-  MatView(B,PETSC_VIEWER_STDOUT_SELF);
 
-  MatCUDA C;
-  MatSeqCopy2GPU(A, &C);
-  printf("------\n");
-  printf("C row = %d \n", C.row);
-  printf("------\n");
- 
-  MatCUDA D;
-  MatSeqCopy2GPU(B, &D);
-  printf("------\n");
-  printf("D row = %d \n", D.row);
-  printf("------\n"); 
+   Mat C;
 
-  
-/*
-   |1.0 0.0 0.0 ...|
-   |1.0 0.0 0.0 ...|
-   |0.0 1.0 0.0 ...|
-   |0.0 1.0 0.0 ...|
-   |0.0 0.0 1.0 ...|
-   |0.0 0.0 1.0 ...|
-   ...
+   Mat D;
+   PetscPrintf(PETSC_COMM_WORLD,"\n\nVERIFICATION!!!!---\n");
+   MatMatMult(A,B,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&D);
+   MatView(D,PETSC_VIEWER_STDOUT_WORLD);
 
-   B:
-   |2.0 0.0 0.0 ...|
-   |0.0 2.0 0.0 ...|
-   |0.0 0.0 2.0 ...|
-   ...                */
-
-// set cusparse matrix types
-  
   CUSPARSE_CHECK(cusparseCreate(&hndl));
+   MatMatMult_MPIAIJGPU(A,B,&C, hndl);
+//   MatView(C,PETSC_VIEWER_STDOUT_WORLD);  
 
-  MatCUDA E;
-  
-  MatMatMult_SeqGPU(C, D, &E, hndl);
 
-  printf("E->row = %d\n", E.row);
-  printf("-------");
- 
-  Mat F;
-  MatSeqCopy2HOST(E,&F);
-  MatView(F,PETSC_VIEWER_STDOUT_SELF);
-  printf("-------");
-  printf("Success!\n");
-  
   MatDestroy(&A);
   PetscFinalize();
 

@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <petscksp.h>
 #include <../src/mat/impls/aij/seq/aij.h>
+#include <../src/mat/impls/aij/mpi/mpiaij.h>
+#include <petsctime.h>
 
 #define CUSPARSE_CHECK(x) {cusparseStatus_t _c=x; if (_c != CUSPARSE_STATUS_SUCCESS) {printf("cusparse fail: %d, line: %d\n", (int)_c, __LINE__); exit(-1);}}
 
@@ -32,6 +34,8 @@ PetscErrorCode MatSeqCopy2GPU(Mat A,MatCUDA *B);
 PetscErrorCode MatSeqCopy2HOST(MatCUDA B, Mat A);
 
 PetscErrorCode MatMatMult_SeqGPU(MatCUDA A, MatCUDA B, MatCUDA *C, cusparseHandle_t hndl);
+
+PetscErrorCode MatMatMult_MPIAIJGPU(Mat A,Mat P,Mat *C, cusparseHandle_t hndl);
 
 #endif
 
