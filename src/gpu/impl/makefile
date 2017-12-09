@@ -33,7 +33,7 @@ distclean :
 exec:   mat_cuda.o
 	-@echo "BEGINNING TO COMPILE APPLICATION "
 	-@echo "========================================="
-	-@${CLINKER} -o ${EXEC} mat_cuda.o ${PETSC_LIB}
+	${CLINKER} -o ${EXEC} mat_cuda.o ${PETSC_LIB}
 	-@echo "Completed building application"
 	-@echo "========================================="
 

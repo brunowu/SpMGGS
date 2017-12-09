@@ -7,13 +7,15 @@
 
 #SBATCH --time=02:30:00
 
-#SBATCH -n 2
-#SBATCH -N 2
+#SBATCH -n 4
+#SBATCH -N 4
 #SBATCH --gres=gpu:1
 
 echo $CUDA_VISIBLE_DEVICES
 
 #srun -n 2 ./matgen.exe -dim 10000 -d1 8 -degree 4 -mat_type aijcusparse -vec_type cuda
 
-mpirun -np 2 ./test.exe -log_view
 
+#mpirun -np 2 ./test.exe -log_view
+
+mpirun -np 4 ./test.exe -dim 40000 -d1 8 -degree 4 -log_view
