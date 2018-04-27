@@ -23,6 +23,8 @@ PetscErrorCode EBMG(){
 
 	PetscInt Istart, Iend;
 
+	PetscTime(&st);
+
     	ierr=PetscOptionsGetInt(NULL, PETSC_NULL,"-dim",&n, &n_flg);CHKERRQ(ierr); // flag -n read the dimension of matrix to generate
 	ierr=PetscOptionsGetInt(NULL, PETSC_NULL,"-degree",&degree, &degree_flg);CHKERRQ(ierr); // flag -degree read the degree of nipotent matrix
 	ierr=PetscOptionsGetInt(NULL, PETSC_NULL,"-d1",&d1, &d1_flg);CHKERRQ(ierr); //flag -d1 real the width of initial low-band matrix
@@ -84,7 +86,6 @@ PetscErrorCode EBMG(){
 
 	PetscScalar tmp;
 
-	PetscTime(&st);
 	for(i=istart;i<iend;i++){
 		tmp = Deigenvalues[i];
 		VecSetValue(eigenvalues, i, tmp, INSERT_VALUES);
@@ -119,40 +120,24 @@ PetscErrorCode EBMG(){
 	ierr = MatDuplicate(Mt,MAT_DO_NOT_COPY_VALUES,&A);CHKERRQ(ierr);
 
 	PetscInt iI, jJ;
-	PetscScalar vV=1;
+	PetscScalar vV=1, vvV=0;
 	i=0;
 
-/*set up the part with the largest degree of nipotent matrix A */
-	for (i=Istart; i<Iend; i++){
-		if (i<degree) {
-	  		iI=i;
-	  		jJ=i+1;
-	  		ierr = MatSetValues(A,1,&iI,1,&jJ,&vV,INSERT_VALUES);CHKERRQ(ierr);
-	  		i++;
-		}
-	}	
+    for(i = Istart; i < Iend; i++){
+            if(i < n-1){
+                    if((i+1) % degree == 0){
+                            iI=i;
+                            jJ=i+1;
+                            ierr = MatSetValues(A,1,&iI,1,&jJ,&vvV,INSERT_VALUES);CHKERRQ(ierr);
+                    }
+                    else{
+                            iI=i;
+                            jJ=i+1;
+                            ierr = MatSetValues(A,1,&iI,1,&jJ,&vV,INSERT_VALUES);CHKERRQ(ierr);
+                    }
+            }
 
-	i=degree+1;
-
-/*set up the other part of nipotent matrix with degree random generated but small than the input one*/
-
-	for (i=Istart; i<Iend; i++){
-		if (i<n-1) {
-	  		srand (time (NULL)); 
-	  		iRandom = IRandom (1,degree);
-	  		for(j=0; j<min(iRandom,n-1-i); j++)
-	  		{
-	    		iI=i+j;
-	    		jJ=i+j+1;
-	    		ierr = MatSetValues(A,1,&iI,1,&jJ,&vV,INSERT_VALUES);CHKERRQ(ierr);
-	  		}
-
-	  		i=i+min(iRandom,n-1-i);
-	  		srand (time (NULL)); 
-	  		iRandom = IRandom (1,max(1,n-1-i));
-	  		i=i+iRandom;
-		}
-	}
+    }
 
 	ierr = MatAssemblyBegin(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
 	ierr = MatAssemblyEnd(A,MAT_FINAL_ASSEMBLY);CHKERRQ(ierr);
@@ -163,28 +148,23 @@ PetscErrorCode EBMG(){
         ierr = MatSetSizes(matAop,PETSC_DECIDE,PETSC_DECIDE,n,n);CHKERRQ(ierr);
         ierr = MatSetType(matAop,MATMPIAIJ);CHKERRQ(ierr);
         ierr = MatSetFromOptions(matAop);CHKERRQ(ierr);
-//	MatSetOption(matAop, MAT_IGNORE_ZERO_ENTRIES, PETSC_TRUE);
         ierr = MatSetUp(matAop);CHKERRQ(ierr);
 
-//	ierr = MatDuplicate(Mt,MAT_COPY_VALUES,&matAop);CHKERRQ(ierr);
-	MatCopy(Mt,matAop,DIFFERENT_NONZERO_PATTERN);
-	my_factorielle_bornes =  factorial(1,(2*degree-2));
-	ierr = MatScale(Mt,my_factorielle_bornes);CHKERRQ(ierr);
+		MatCopy(Mt,matAop,DIFFERENT_NONZERO_PATTERN);
+		my_factorielle_bornes =  factorial(1,(2*degree-2));
+		ierr = MatScale(Mt,my_factorielle_bornes);CHKERRQ(ierr);
 
 	for (k=1; k<=(2*degree-2); k++) {
-	  ierr = MatMatMultSymbolic(matAop,A,PETSC_DEFAULT,&MA);CHKERRQ(ierr); 
-//          ierr = MatMatMultSymbolic(matAop,A,1,&MA);CHKERRQ(ierr);
-	  ierr = MatMatMultNumeric(matAop,A,MA);CHKERRQ(ierr);//M*A
-//          ierr = MatMatMultSymbolic(A,matAop,1,&AM);CHKERRQ(ierr);
-	  ierr = MatMatMultSymbolic(A,matAop,PETSC_DEFAULT,&AM);CHKERRQ(ierr);
-	  ierr = MatMatMultNumeric(A,matAop,AM);CHKERRQ(ierr); //A*M
+          MatMatMult(matAop, A, MAT_INITIAL_MATRIX,  PETSC_DEFAULT , &MA);
+          MatMatMult(A, matAop, MAT_INITIAL_MATRIX,  PETSC_DEFAULT , &AM);
 
-	  ierr = MatAYPX(matAop,0,AM, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-	  ierr = MatAXPY(matAop,-1,MA,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);//A*M-M*A
-	  my_factorielle_bornes =  factorial(k+1,2*degree-2); //2*(d-1)*(2d-3)****(k+1) 
-	  ierr = MatAXPY(Mt,my_factorielle_bornes,matAop,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-	  ierr = MatZeroEntries(AM);CHKERRQ(ierr);
-	  ierr = MatZeroEntries(MA);CHKERRQ(ierr);
+		  ierr = MatAYPX(matAop,0,AM, DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+		  ierr = MatAXPY(matAop,-1,MA,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);//A*M-M*A
+		  MatView(MA, PETSC_VIEWER_STDOUT_WORLD);
+		  my_factorielle_bornes =  factorial(k+1,2*degree-2); //2*(d-1)*(2d-3)****(k+1) 
+		  ierr = MatAXPY(Mt,my_factorielle_bornes,matAop,DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
+		  ierr = MatZeroEntries(AM);CHKERRQ(ierr);
+		  ierr = MatZeroEntries(MA);CHKERRQ(ierr);
 	}
 
   	my_factorielle_bornes =  factorial(1,(2*degree-2));
@@ -196,15 +176,6 @@ PetscErrorCode EBMG(){
 	PetscTime(&ed);
 	MatGetInfo(Mt,MAT_GLOBAL_SUM,&Ainfo);
 
-/*
-	PetscInt nn;
-	PetscScalar *va;
-
-	MatGetRow(Mt,4, &nn,NULL,&va);
-	for(i=0;i<nn;i++){
-		PetscPrintf(PETSC_COMM_WORLD,"va[%d] = %.20f\n",i,va[i]);
-	}
-*/
 	gnnz = Ainfo.nz_used;
 
 	sprintf(matrixOutputFile,"Rectangular_nb_%d_%dx%d_%g_nnz.gz",n, n,n,gnnz);

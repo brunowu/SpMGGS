@@ -11,10 +11,11 @@ MDIR=./data
 
 MPI_NODES=1
 ARNOLDI_PRECISION=1e-10
+MAT = utm300_300x300.dat
 #MAT=utm300.mtx_300x300_3155nnz
 #MAT=matBlock_nb_300_90000x90000_1.88984e+06_nnz
 #MAT = matLine_nb_600_180000x180000_1.91215e+06_nnz
-MAT = EBMG_matrix_nb_10_10x10_58_nnz
+#MAT = EBMG_matrix_nb_10_10x10_58_nnz
 ARNOLDI_NBEIGEN= 10
 EPS_MONITOR = -eps_monitor_conv
 ARNOLDI_NCV = 11
@@ -53,7 +54,7 @@ exec: powerInverse.o
 
 runa:
 	-@${MPIEXEC} -np ${MPI_NODES} ./powerInverse.exe -mfile ${MDIR}/${MAT} ${LOG_VIEW} ${EPS_MONITOR} -eps_power_shift_type ${SHIFT_TYPE} \
-	-st_type ${ST_TYPE} -test_value ${TEST_VALUE} -test_tol ${TEST_TOL} -degree ${DEGREE}
+	-st_type ${ST_TYPE} -exact_value ${TEST_VALUE} -test_tol ${TEST_TOL} -degree ${DEGREE}
 
 
 
